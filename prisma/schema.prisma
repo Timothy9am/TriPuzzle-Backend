@@ -25,38 +25,40 @@ model categories {
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
 model favorites {
-  id              Int    @id @default(autoincrement()) // 單一主鍵
   favorite_user   Int
   favorite_places String
+  id              Int    @id @default(autoincrement())
   places          places @relation(fields: [favorite_places], references: [place_id])
   users           users  @relation(fields: [favorite_user], references: [id])
 
-  @@unique([favorite_user, favorite_places]) // 唯一約束取代複合主鍵
+  @@unique([favorite_user, favorite_places])
+  @@index([favorite_places], map: "favorites_place_id_idx")
+  @@index([favorite_user], map: "favorites_user_id_idx")
 }
 
 model places {
   id                Int                 @id @default(autoincrement())
-  place_id          String              @unique @db.VarChar(255)
   name              String              @db.VarChar(255)
   name_en           String?             @db.VarChar(255)
-  summary           String?             @db.VarChar(255)
   image_url         String?             @db.VarChar(2048)
   country           String?             @default("Unknown") @db.VarChar(45)
   city              String?             @default("Unknown") @db.VarChar(45)
   address           String?             @default("Unknown") @db.VarChar(255)
-  location          String?             @default("Unknown") @db.VarChar(255)
   phone             String?
   website           String?             @db.VarChar(225)
   rating            Decimal?            @default(0.0) @db.Decimal(2, 1)
-  opening_hours     Json                @default("[]")
-  photos            Json                @default("[]")
-  photos_length     Int?                @default(0)
-  geometry          Json                @default("[]")
   google_map_url    String?             @db.VarChar(511)
   web_map           String?             @db.VarChar(255)
   share_url         String?             @db.VarChar(255)
   share_code        Bytes?              @db.Blob
   search_code       String?             @db.VarChar(255)
+  place_id          String              @unique @db.VarChar(255)
+  geometry          Json
+  location          String?             @default("Unknown") @db.VarChar(255)
+  opening_hours     Json
+  photos            Json
+  photos_length     Int?                @default(0)
+  summary           String?             @db.VarChar(255)
   token             String?
   favorites         favorites[]
   places_categories places_categories[]
@@ -71,7 +73,9 @@ model places_categories {
   categories  categories @relation(fields: [category_id], references: [id])
   places      places     @relation(fields: [place_id], references: [place_id])
 
-  @@unique([place_id, category_id]) // 唯一約束
+  @@unique([place_id, category_id])
+  @@index([category_id], map: "categories_category_id_idx")
+  @@index([place_id], map: "categories_places_id_idx")
 }
 
 model schedule_places {
@@ -80,15 +84,18 @@ model schedule_places {
   schedule_id        Int
   which_date         DateTime          @db.Date
   arrival_time       DateTime?         @default(dbgenerated("'08:00:00'")) @db.Time(0)
-  stay_time          DateTime          @default(dbgenerated("'01:00:00'")) @db.Time(0)
+  stay_time          DateTime?         @default(dbgenerated("'01:00:00'")) @db.Time(0)
   transportation_way TransportationWay @default(PUBLIC_TRANSPORT)
-  order              String            @db.VarChar(45)
-  places             places            @relation(fields: [place_id], references: [place_id], onUpdate: Restrict, map: "schedule_place_id") // 修改 references 為 place_id
-  schedules          schedules         @relation(fields: [schedule_id], references: [id], onUpdate: Restrict, map: "schedule_schedule_id")
+  order              Int               @default(0)
+  places             places            @relation(fields: [place_id], references: [place_id], onUpdate: Restrict, map: "schedule_place_id")
+  schedules          schedules         @relation(fields: [schedule_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "schedule_schedule_id")
 
   @@index([place_id], map: "schedule_place_id_idx")
   @@index([schedule_id], map: "schedule_schedule_id_idx")
 }
+
+
+
 
 model schedules {
   id                 Int               @id @default(autoincrement())
@@ -102,6 +109,8 @@ model schedules {
   end_date           DateTime          @db.Date
   transportation_way TransportationWay @default(PUBLIC_TRANSPORT)
   created_at         DateTime?         @default(now()) @db.Timestamp(0)
+  share_token        String?           @unique @db.VarChar(225)
+  total_users        Int               @default(1)
   schedule_places    schedule_places[]
   users_bills        users_bills[]
   users_images       users_images[]
@@ -122,6 +131,7 @@ model users {
   create_at       DateTime?         @default(now()) @db.Timestamp(0)
   token           String?           @db.VarChar(511)
   token_time      DateTime          @default(now()) @updatedAt @db.Timestamp(0)
+  level           String?           @db.VarChar(45)
   favorites       favorites[]
   users_bills     users_bills[]
   users_images    users_images[]
@@ -156,17 +166,16 @@ model users_images {
   @@index([users_id], map: "image_user_id_idx")
 }
 
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
 model users_schedules {
   schedule_id Int
   user_id     Int
   access      Boolean   @default(true)
-  schedules   schedules @relation(fields: [schedule_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "schedules_schedule_id")
-  users       users     @relation(fields: [user_id], references: [id], onUpdate: Restrict, map: "schedules_user_id")
+  schedules   schedules @relation(fields: [schedule_id], references: [id], onDelete: Cascade)
+  users       users     @relation(fields: [user_id], references: [id])
 
   @@id([schedule_id, user_id])
-  @@index([schedule_id], map: "fk_schedules_id_idx")
-  @@index([user_id], map: "fk_user_id_idx")
+  @@index([schedule_id])
+  @@index([user_id])
 }
 
 model tokenblacklist {

@@ -2,6 +2,7 @@ import express from 'express';
 import passport from 'passport';
 
 const router = express.Router();
+
 const HOST_URL = process.env.HOST_URL;
 
 router.get('/google', passport.authenticate('google', {

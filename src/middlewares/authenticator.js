@@ -30,9 +30,7 @@ const authenticator = async (req, res, next) => {
 
     // 檢查使用者是否存在，以及資料庫中的 token 與目前提供的是否一致
     if (!user || user.token !== token) {
-      return res
-        .status(401)
-        .json({ status: 401, message: "Token 已失效或無效" });
+      return res.status(401).json({ status: 401, message: "Token 已失效或無效" });
     }
 
     // 若檢查通過，將解碼後的使用者資訊附加到 req 上

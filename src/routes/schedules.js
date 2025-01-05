@@ -13,6 +13,13 @@ router.get("/", authenticate, async (req, res) => {
 
     const rows = await prisma.schedules.findMany({
       where: { create_by: userId },
+      include: {
+        schedule_places: {
+          include: {
+            places: true,
+          },
+        },
+      },
     });
 
     if (rows.length === 0) {
@@ -26,8 +33,30 @@ router.get("/", authenticate, async (req, res) => {
 });
 
 // 尋找單一行程（只能找到自己的，只是為了把每個schedule編號用）
-router.get("/:id", authenticate, verifyOwner("schedules"), (req, res) => {
-  res.status(200).json(req.resource);
+
+router.get("/:id", authenticate, verifyOwner("schedules"), async (req, res) => {
+  try {
+    const scheduleId = parseInt(req.params.id);
+
+    const schedule = await prisma.schedules.findUnique({
+      where: { id: scheduleId },
+      include: {
+        schedule_places: {
+          include: {
+            places: true,
+          },
+        },
+      },
+    });
+
+    if (!schedule) {
+      return res.status(404).json({ message: "找不到該行程" });
+    }
+
+    res.status(200).json(schedule);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // 讓登入的用戶一自己的身份建立新行程
@@ -43,6 +72,8 @@ router.post("/", authenticate, async (req, res) => {
       start_date,
       end_date,
       transportation_way,
+      places,
+
     } = req.body;
 
     const userId = req.user.id;
@@ -50,7 +81,8 @@ router.post("/", authenticate, async (req, res) => {
     const formattedStartDate = new Date(`${start_date}T00:00:00.000Z`);
     const formattedEndDate = new Date(`${end_date}T00:00:00.000Z`);
 
-    await prisma.schedules.create({
+
+    const newSchedule = await prisma.schedules.create({
       data: {
         title,
         create_by: userId,
@@ -63,7 +95,6 @@ router.post("/", authenticate, async (req, res) => {
         transportation_way,
       },
     });
-
     res.status(201).json({ message: "成功建立新行程" });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -84,6 +115,7 @@ router.patch(
         start_date,
         end_date,
         transportation_way,
+        places,
       } = req.body;
 
       const formattedStartDate = start_date

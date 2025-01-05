@@ -3,9 +3,10 @@ import jwt from "jsonwebtoken";
 import { prisma } from "../configs/db.js";
 import { config } from "../../config.js";
 
+
+
 const register = async (req, res) => {
   const { name, email, password } = req.body;
-
   const existingUser = await prisma.users.findFirst({
     where: {
       OR: [{ email }, { name }],
@@ -121,9 +122,7 @@ const logout = async (req, res) => {
     decoded = jwt.verify(token, config.jwtSecretKey);
   } catch (error) {
     console.error(error);
-    return res
-      .status(401)
-      .json({ status: 401, message: "Invalid or expired token" });
+    return res.status(401).json({ status: 401, message: "Invalid or expired token" });
   }
 
   // 檢查 token 是否在黑名單
@@ -162,10 +161,7 @@ const logout = async (req, res) => {
 const check = async (req, res) => {
   try {
     if (!req.user || !req.user.id) {
-      // 若沒有使用者資訊，表示 token 不存在或無效
-      return res
-        .status(401)
-        .json({ message: "Invalid token or not logged in" });
+      return res.status(401).json({ message: "Invalid token or not logged in" });
     }
 
     const user = await prisma.users.findUnique({
@@ -173,7 +169,6 @@ const check = async (req, res) => {
     });
 
     if (!user) {
-      // 若查不到該使用者，表示資料庫中無此紀錄
       return res.status(404).json({ message: "User not found" });
     }
 
@@ -191,5 +186,7 @@ const check = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+
 
 export { register, login, logout, check };
